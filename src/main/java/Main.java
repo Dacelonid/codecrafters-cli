@@ -1,15 +1,30 @@
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class Main {
-    public static void main(String[] args){
+    public static void main(String[] args) {
         printPrompt();
-        while(true) {
+
+        //noinspection InfiniteLoopStatement
+        while (true) {
             String userInput = getInput();
             String[] inputs = userInput.split(" ");
             checkForExit(inputs);
-            System.out.println(userInput + ": command not found");
+            if (inputs[0].equals("echo")) {
+                System.out.println(handleEchoCommand(inputs));
+            } else {
+                System.out.println(handleCommandNotFound(userInput));
+            }
             printPrompt();
         }
+    }
+
+    private static String handleCommandNotFound(String userInput) {
+        return userInput + ": command not found";
+    }
+
+    private static String handleEchoCommand(String[] inputs) {
+        return java.util.Arrays.stream(inputs, 1, inputs.length).collect(Collectors.joining(" "));
     }
 
     private static void printPrompt() {
@@ -17,11 +32,9 @@ public class Main {
     }
 
     private static void checkForExit(String[] inputs) {
-        if(inputs.length == 2){ //assume exit and exit code
-            if(inputs[0].equals("exit")){
-                if(isInteger(inputs[1]))
-                    System.exit(Integer.parseInt(inputs[1]));
-            }
+        if (inputs[0].equals("exit")) {
+            if (isInteger(inputs[1]))
+                System.exit(Integer.parseInt(inputs[1]));
         }
     }
 
