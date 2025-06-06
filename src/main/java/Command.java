@@ -1,4 +1,14 @@
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.lang.System.getenv;
+import static java.nio.file.Files.exists;
+import static java.util.regex.Pattern.quote;
+
 
 public enum Command {
     ECHO("echo") {
@@ -10,7 +20,7 @@ public enum Command {
     }, EXIT("exit") {
         @Override
         public void execute(String[] options) {
-            if (isInteger(options[1])) {
+            if (Utils.isInteger(options[1])) {
                 System.exit(Integer.parseInt(options[1]));
             } else {
                 System.out.println("Exit called with a non numerical exit code");
@@ -30,7 +40,15 @@ public enum Command {
 
         @Override
         public void explain(String[] options) {
-            System.out.println(options[1] + ": not found");
+            String command = options[1];
+            Optional<Path> possiblePath = Stream.of(getenv("PATH").split(quote(File.pathSeparator)))
+                    .map(Paths::get)
+                    .filter(path -> exists(path.resolve(command))).findFirst();
+            if (possiblePath.isPresent()) {
+                System.out.println(possiblePath.get() + File.separator + command);
+            } else {
+                System.out.println(command + ": not found");
+            }
         }
     };
 
@@ -38,6 +56,10 @@ public enum Command {
 
     Command(String name) {
         this.name = name;
+    }
+
+    public void explain(String[] options) {
+        System.out.println(name + " is a shell builtin");
     }
 
     public static Command valeOf(String command) {
@@ -49,18 +71,5 @@ public enum Command {
         };
     }
 
-    public static boolean isInteger(String s) {
-        try {
-            Integer.parseInt(s);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
     public abstract void execute(String[] options);
-
-    public void explain(String[] options) {
-        System.out.println(name + " is a shell builtin");
-    }
 }
