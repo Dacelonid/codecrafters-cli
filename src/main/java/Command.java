@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import static java.lang.System.getenv;
 import static java.nio.file.Files.exists;
+import static java.util.Arrays.stream;
 import static java.util.regex.Pattern.quote;
 
 
@@ -18,7 +19,7 @@ public enum Command {
     ECHO("echo") {
         @Override
         public void execute(String[] arguments) {
-            System.out.println(java.util.Arrays.stream(arguments, 1, arguments.length).collect(Collectors.joining(" ")));
+            System.out.println(stream(arguments, 1, arguments.length).collect(Collectors.joining(" ")));
         }
 
     }, EXIT("exit") {
