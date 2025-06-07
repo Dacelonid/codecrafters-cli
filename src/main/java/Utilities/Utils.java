@@ -1,3 +1,5 @@
+package Utilities;
+
 public class Utils {
     public static boolean isInteger(String s) {
         try {
@@ -7,4 +9,5 @@ public class Utils {
             return false;
         }
     }
+
 }

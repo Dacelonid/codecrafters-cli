@@ -1,3 +1,6 @@
+import Utilities.FileUtilities;
+import Utilities.Utils;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -78,27 +81,28 @@ public enum Command {
     }, CD("cd") {
         @Override
         public void execute(String[] arguments) {
-            if (absolutePath(arguments[1])) {
-                
-                if (exists(Path.of(arguments[1]).toAbsolutePath()))
-                    wd.setDir(arguments[1]);
-                else {
-                    System.out.println("cd: " + arguments[1] + ": No such file or directory");
-                }
-            }else{
-                Path newPath = Paths.get(wd.getDir()).resolve(arguments[1]).toAbsolutePath().normalize();
-                if(exists(newPath)){
-                    wd.setDir(newPath.toAbsolutePath().toString());
-                }
-                else {
-                    System.out.println("cd: " + arguments[1] + ": No such file or directory");
-                }
+            String target;
+            if (FileUtilities.isAbsolutePath(arguments[1])) {
+                target = arguments[1];
+            }
+            else if(arguments[1].startsWith("~")){
+                target = FileUtilities.resolveHomeDirectory(arguments[1]);
+            }
+            else{
+                target = FileUtilities.resolveRelativeDirectory(wd.getDir(), arguments);
+            }
+            changeDir(target);
+        }
+
+        private void changeDir(String directory) {
+            if (exists(Path.of(directory).toAbsolutePath()))
+                wd.setDir(directory);
+            else {
+                System.out.println("cd: " + directory + ": No such file or directory");
             }
         }
 
-        private boolean absolutePath(String directory) {
-            return directory.startsWith("/");
-        }
+
     };
 
     private final String name;
