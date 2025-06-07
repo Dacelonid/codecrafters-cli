@@ -70,6 +70,11 @@ public enum Command {
                     .map(Paths::get)
                     .filter(path -> exists(path.resolve(command))).findFirst();
         }
+    }, PWD("pwd") {
+        @Override
+        public void execute(String[] arguments) {
+            System.out.println(Path.of("").toAbsolutePath());
+        }
     };
 
     private final String name;
@@ -87,6 +92,7 @@ public enum Command {
             case "type" -> TYPE;
             case "echo" -> ECHO;
             case "exit" -> EXIT;
+            case "pwd" -> PWD;
             default -> UNKNOWN;
         };
     }
