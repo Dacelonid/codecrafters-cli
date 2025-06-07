@@ -78,11 +78,26 @@ public enum Command {
     }, CD("cd") {
         @Override
         public void execute(String[] arguments) {
-            if(exists(Path.of(arguments[1]).toAbsolutePath()))
-                wd.setDir(arguments[1]);
-            else{
-                System.out.println("cd: " + arguments[1] + ": No such file or directory");
+            if (absolutePath(arguments[1])) {
+                
+                if (exists(Path.of(arguments[1]).toAbsolutePath()))
+                    wd.setDir(arguments[1]);
+                else {
+                    System.out.println("cd: " + arguments[1] + ": No such file or directory");
+                }
+            }else{
+                Path newPath = Paths.get(wd.getDir()).resolve(arguments[1]).toAbsolutePath().normalize();
+                if(exists(newPath)){
+                    wd.setDir(newPath.toAbsolutePath().toString());
+                }
+                else {
+                    System.out.println("cd: " + arguments[1] + ": No such file or directory");
+                }
             }
+        }
+
+        private boolean absolutePath(String directory) {
+            return directory.startsWith("/");
         }
     };
 
