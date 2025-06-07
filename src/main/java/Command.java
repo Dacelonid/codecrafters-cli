@@ -55,8 +55,8 @@ public enum Command {
         }
 
         @Override
-        public void explain(String[] options) {
-            String commandToExplain = options[1];
+        public void explain(String[] arguments) {
+            String commandToExplain = arguments[1];
             Optional<Path> possiblePath = findCommandInPath(commandToExplain);
             if (possiblePath.isPresent()) {
                 System.out.println(possiblePath.get() + File.separator + commandToExplain);
@@ -73,17 +73,27 @@ public enum Command {
     }, PWD("pwd") {
         @Override
         public void execute(String[] arguments) {
-            System.out.println(Path.of("").toAbsolutePath());
+            System.out.println(wd.getDir());
+        }
+    }, CD("cd") {
+        @Override
+        public void execute(String[] arguments) {
+            if(exists(Path.of(arguments[1]).toAbsolutePath()))
+                wd.setDir(arguments[1]);
+            else{
+                System.out.println("cd: " + arguments[1] + ": No such file or directory");
+            }
         }
     };
 
     private final String name;
+    private static final WorkingDirectory wd = new WorkingDirectory();
 
     Command(String name) {
         this.name = name;
     }
 
-    public void explain(String[] options) {
+    public void explain(String[] arguments) {
         System.out.println(name + " is a shell builtin");
     }
 
@@ -93,6 +103,7 @@ public enum Command {
             case "echo" -> ECHO;
             case "exit" -> EXIT;
             case "pwd" -> PWD;
+            case "cd" -> CD;
             default -> UNKNOWN;
         };
     }
