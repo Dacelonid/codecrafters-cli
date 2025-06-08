@@ -1,15 +1,8 @@
-import Utilities.FileUtilities;
-import Utilities.OutputWriter;
-import Utilities.Utils;
-import Utilities.WorkingDirectory;
+import Utilities.*;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -45,64 +38,17 @@ public enum Command {
         }
     },
 
-    UNKNOWN("unknown") {
+    EXTERNAL("external") {
         @Override
         public void execute(String[] arguments) {
-            if (!findCommandInPath(arguments[0]).isPresent()) {
+            if (findCommandInPath(arguments[0]).isEmpty()) {
                 OutputWriter.println(arguments[0] + ": command not found");
                 return;
             }
 
-            executeExternalCommand(arguments);
+            new ExternalCommandExecutor().executeExternalCommand(arguments);
         }
 
-        private void executeExternalCommand(String[] options) {
-            String os = System.getProperty("os.name").toLowerCase();
-            String commandLine = shellEscapeJoin(List.of(options));
-
-            ProcessBuilder builder = os.contains("win")
-                    ? new ProcessBuilder("cmd.exe", "/c", commandLine)
-                    : new ProcessBuilder("/bin/sh", "-c", commandLine);
-
-            try {
-                Process process = builder.start();
-
-                // Read stdout
-                try (BufferedReader stdout = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = stdout.readLine()) != null) {
-                        OutputWriter.getOut().println(line);
-                    }
-                }
-
-                // Read stderr — this must go to terminal regardless of redirection
-                try (BufferedReader stderr = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                    String line;
-                    while ((line = stderr.readLine()) != null) {
-                        System.err.println(line); // ✅ Use actual stderr
-                    }
-                }
-
-                int exitCode = process.waitFor();
-                if (exitCode != 0) {
-                    // Don't print unless needed (already handled by stderr)
-                }
-
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException("Could not execute external command", e);
-            }
-        }
-
-        private String shellEscape(String s) {
-            if (s == null || s.isEmpty()) {
-                return "''";
-            }
-            return "'" + s.replace("'", "'\\''") + "'";
-        }
-
-        private String shellEscapeJoin(List<String> args) {
-            return args.stream().map(this::shellEscape).collect(Collectors.joining(" "));
-        }
 
         @Override
         public void explain(String[] arguments) {
@@ -133,14 +79,7 @@ public enum Command {
     CD("cd") {
         @Override
         public void execute(String[] arguments) {
-            String target;
-            if (FileUtilities.isAbsolutePath(arguments[1])) {
-                target = arguments[1];
-            } else if (arguments[1].startsWith("~")) {
-                target = FileUtilities.resolveHomeDirectory(arguments[1]);
-            } else {
-                target = FileUtilities.resolveRelativeDirectory(wd.getDir(), arguments);
-            }
+            String target = new CompositePathResolver().resolve(arguments, wd.getDir());
             changeDir(target);
         }
 
@@ -171,7 +110,7 @@ public enum Command {
             case "exit" -> EXIT;
             case "pwd" -> PWD;
             case "cd" -> CD;
-            default -> UNKNOWN;
+            default -> EXTERNAL;
         };
     }
 
