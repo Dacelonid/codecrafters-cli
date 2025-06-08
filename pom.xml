@@ -32,7 +32,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>Main</mainClass>
+                            <mainClass>shell.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -50,7 +50,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <!-- This is the main class of your program which will be executed-->
-                            <mainClass>Main</mainClass>
+                            <mainClass>shell.Main</mainClass>
                         </manifest>
                     </archive>
                     <outputDirectory>${dir}</outputDirectory>

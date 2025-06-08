@@ -1,10 +1,11 @@
-import Utilities.OutputClass;
-import Utilities.OutputWriter;
-import Utilities.WorkingDirectory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import shell.command.Command;
+import shell.command.ShellCommand;
+import shell.io.OutputWriter;
+import shell.path.WorkingDirectory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -18,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShellTest {
 
     private ByteArrayOutputStream output;
-    private PrintStream out;
 
     @TempDir
     private Path tempDir;
@@ -27,25 +27,24 @@ class ShellTest {
     @BeforeEach
     void setUp() throws IOException {
         subDir = Files.createDirectory(tempDir.resolve("tmp"));
-//        WorkingDirectory.reset();
         WorkingDirectory.get().setDir(tempDir);
 
         output = new ByteArrayOutputStream();
-        out = new PrintStream(output);
+        PrintStream out = new PrintStream(output);
         OutputWriter.setOut(out);
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    void tearDown() {
         OutputWriter.reset(); // Restore System.out
     }
 
-    private String run(String input) throws Exception {
+    private String run(String input) {
         String[] tokens = tokenize(input);
         assertNotEquals(0, tokens.length, "No tokens parsed from: " + input);
 
         String cmdName = tokens[0];
-        Command cmd = Command.fromString(cmdName);
+        ShellCommand cmd = Command.resolve(cmdName);
         if (cmd == null) {
             fail("Unknown command: " + cmdName);
         }
@@ -55,50 +54,50 @@ class ShellTest {
     }
 
     @Test
-    void testEcho() throws Exception {
+    void testEcho() {
         String result = run("echo Hello World");
         assertEquals("Hello World", result);
     }
 
     @Test
-    void testPwd() throws Exception {
+    void testPwd() {
         String result = run("pwd");
         assertEquals(tempDir.toString(), result);
     }
 
     @Test
-    void testExternalCommandNotFound() throws Exception {
+    void testExternalCommandNotFound(){
         String result = run("lssdf");
         assertEquals("lssdf: command not found", result);
     }
 
 
     @Test
-    void testQuotedStringSingle() throws Exception {
+    void testQuotedStringSingle() {
         String result = run("echo 'a b'");
         assertEquals("a b", result);
     }
 
     @Test
-    void testQuotedStringDouble() throws Exception {
+    void testQuotedStringDouble(){
         String result = run("echo \"a b\"");
         assertEquals("a b", result);
     }
 
     @Test
-    void testEscapedSpace() throws Exception {
+    void testEscapedSpace(){
         String result = run("echo a\\ b");
         assertEquals("a b", result);
     }
 
     @Test
-    void testEscapedQuotesInDoubleQuotes() throws Exception {
+    void testEscapedQuotesInDoubleQuotes() {
         String result = run("echo \"a \\\"quote\\\" b\"");
         assertEquals("a \"quote\" b", result);
     }
 
     @Test
-    void testMultipleCommandsPreserveState() throws Exception {
+    void testMultipleCommandsPreserveState(){
         run("cd tmp");
         String result = run("pwd");
 
@@ -106,19 +105,19 @@ class ShellTest {
     }
 
     @Test
-    void testEmptyCommand() throws Exception {
+    void testEmptyCommand() {
         String[] tokens = tokenize("");
         assertEquals(0, tokens.length);
     }
 
     @Test
-    void testTypeBuiltin() throws Exception {
+    void testTypeBuiltin() {
         String result = run("type echo");
         assertEquals("echo is a shell builtin", result);
     }
 
     @Test
-    void testTypeCommand() throws Exception {
+    void testTypeCommand(){
         String os = System.getProperty("os.name").toLowerCase();
         String command;
         String expected1;

@@ -3,8 +3,23 @@ package Utilities;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Utils {
+/**
+ * Utility methods used throughout the shell interpreter.
+ * This class is not meant to be instantiated.
+ */
+public final class Utils {
 
+    // Private constructor to prevent instantiation
+    private Utils() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
+    /**
+     * Determines whether a given string can be parsed as an integer.
+     *
+     * @param s the input string
+     * @return {@code true} if the string can be parsed as an integer; {@code false} otherwise
+     */
     public static boolean isInteger(String s) {
         try {
             Integer.parseInt(s);
@@ -14,6 +29,21 @@ public class Utils {
         }
     }
 
+    /**
+     * Tokenizes a shell command input string into an array of arguments,
+     * correctly handling quoting and escaping according to POSIX shell rules.
+     *
+     * <p>This supports:
+     * <ul>
+     *     <li>Whitespace as a separator (unless inside quotes)</li>
+     *     <li>Single quotes: literal content, no escapes</li>
+     *     <li>Double quotes: allows \", \\, \$, \`</li>
+     *     <li>Backslashes outside quotes escape the next character</li>
+     * </ul>
+     *
+     * @param input the raw command input string
+     * @return an array of parsed tokens
+     */
     public static String[] tokenize(String input) {
         List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -26,15 +56,13 @@ public class Utils {
             char c = input.charAt(i);
 
             if (escaping) {
-                // In double quotes: only escape certain characters
+                // Handle escaped character
                 if (inDoubleQuote && (c == '"' || c == '\\' || c == '$' || c == '`')) {
                     current.append(c);
-                } else if (!inDoubleQuote && !inSingleQuote) {
-                    // Outside quotes: remove the backslash, append next char literally
-                    current.append(c);
+                } else if (!inSingleQuote && !inDoubleQuote) {
+                    current.append(c); // Strip backslash, append char
                 } else {
-                    // In single quotes or other cases: keep the backslash
-                    current.append('\\').append(c);
+                    current.append('\\').append(c); // Keep backslash in single quotes
                 }
                 escaping = false;
                 continue;
@@ -42,8 +70,7 @@ public class Utils {
 
             if (c == '\\') {
                 if (inSingleQuote) {
-                    // Backslashes are literal inside single quotes
-                    current.append(c);
+                    current.append(c); // Backslashes are literal in single quotes
                 } else {
                     escaping = true;
                 }
@@ -77,5 +104,4 @@ public class Utils {
 
         return tokens.toArray(new String[0]);
     }
-
 }
