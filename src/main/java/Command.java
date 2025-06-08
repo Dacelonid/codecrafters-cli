@@ -1,12 +1,10 @@
-import Utilities.FileUtilities;
-import Utilities.ListFiles;
-import Utilities.Utils;
+import Utilities.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -21,7 +19,7 @@ public enum Command {
     ECHO("echo") {
         @Override
         public void execute(String[] arguments) {
-            System.out.println(stream(arguments, 1, arguments.length).collect(Collectors.joining(" ")));
+            OutputWriter.println(stream(arguments, 1, arguments.length).collect(Collectors.joining(" ")));
         }
     },
 
@@ -31,7 +29,7 @@ public enum Command {
             if (Utils.isInteger(arguments[1])) {
                 System.exit(Integer.parseInt(arguments[1]));
             } else {
-                System.out.println("Exit called with a non numerical exit code");
+                OutputWriter.getOut().println("Exit called with a non numerical exit code");
             }
         }
     },
@@ -49,17 +47,14 @@ public enum Command {
             if (findCommandInPath(arguments[0]).isPresent()) {
                 executeExternalCommand(arguments);
             } else {
-                System.out.println(arguments[0] + ": command not found");
+                OutputWriter.println(arguments[0] + ": command not found");
             }
         }
 
         private void executeExternalCommand(String[] options) {
             // Build a shell-escaped command line string
             String commandLine = shellEscapeJoin(List.of(options));
-//            System.out.println("debug" + Arrays.toString(options));
-//            System.out.println("debug" + commandLine);
-//            List<String> list = ListFiles.list("/tmp");
-//            list.forEach(file -> System.out.println("debug1 > " + file));
+
             // Run via shell to preserve quoting and spaces exactly as needed
             ProcessBuilder builder = new ProcessBuilder("/bin/sh", "-c", commandLine);
             builder.inheritIO();
@@ -67,7 +62,7 @@ public enum Command {
                 Process process = builder.start();
                 int exitCode = process.waitFor();
                 if (exitCode != 0) {
-                    System.err.println("Command exited with code " + exitCode);
+                    OutputWriter.println("Command exited with code " + exitCode);
                 }
             } catch (IOException | InterruptedException e) {
                 throw new RuntimeException("Could not execute External Command", e);
@@ -93,23 +88,24 @@ public enum Command {
             String commandToExplain = arguments[1];
             Optional<Path> possiblePath = findCommandInPath(commandToExplain);
             if (possiblePath.isPresent()) {
-                System.out.println(possiblePath.get() + File.separator + commandToExplain);
+                OutputWriter.println(possiblePath.get() + File.separator + commandToExplain);
             } else {
-                System.out.println(commandToExplain + ": not found");
+                OutputWriter.println(commandToExplain + ": not found");
             }
         }
 
         private Optional<Path> findCommandInPath(String command) {
+            String suffix = System.getProperty("os.name").toLowerCase().contains("win") ? ".exe" : "";
             return Stream.of(getenv("PATH").split(quote(File.pathSeparator)))
                     .map(Paths::get)
-                    .filter(path -> exists(path.resolve(command))).findFirst();
+                    .filter(path -> exists(path.resolve(command + suffix))).findFirst();
         }
     },
 
     PWD("pwd") {
         @Override
         public void execute(String[] arguments) {
-            System.out.println(wd.getDir());
+            OutputWriter.println(wd.getDir());
         }
     },
 
@@ -131,20 +127,20 @@ public enum Command {
             if (exists(Path.of(directory).toAbsolutePath()))
                 wd.setDir(directory);
             else {
-                System.out.println("cd: " + directory + ": No such file or directory");
+                OutputWriter.println("cd: " + directory + ": No such file or directory");
             }
         }
     };
 
     private final String name;
-    private static final WorkingDirectory wd = new WorkingDirectory();
+    private static final WorkingDirectory wd = WorkingDirectory.get();
 
     Command(String name) {
         this.name = name;
     }
 
     public void explain(String[] arguments) {
-        System.out.println(name + " is a shell builtin");
+        OutputWriter.println(name + " is a shell builtin");
     }
 
     public static Command fromString(String command) {

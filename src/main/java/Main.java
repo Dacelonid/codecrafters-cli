@@ -1,3 +1,6 @@
+import Utilities.OutputClass;
+import Utilities.OutputWriter;
+
 import java.util.Scanner;
 import static Utilities.Utils.tokenize;
 
@@ -15,7 +18,7 @@ public class Main {
 
     private static void printPrompt() {
         if (!testMode) {
-            System.out.print("$ ");
+            OutputWriter.print("$ ");
         }
     }
 
