@@ -1,8 +1,12 @@
-import Utilities.*;
+import Utilities.FileUtilities;
+import Utilities.OutputWriter;
+import Utilities.Utils;
+import Utilities.WorkingDirectory;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -44,28 +48,48 @@ public enum Command {
     UNKNOWN("unknown") {
         @Override
         public void execute(String[] arguments) {
-            if (findCommandInPath(arguments[0]).isPresent()) {
-                executeExternalCommand(arguments);
-            } else {
+            if (!findCommandInPath(arguments[0]).isPresent()) {
                 OutputWriter.println(arguments[0] + ": command not found");
+                return;
             }
+
+            executeExternalCommand(arguments);
         }
 
         private void executeExternalCommand(String[] options) {
-            // Build a shell-escaped command line string
+            String os = System.getProperty("os.name").toLowerCase();
             String commandLine = shellEscapeJoin(List.of(options));
 
-            // Run via shell to preserve quoting and spaces exactly as needed
-            ProcessBuilder builder = new ProcessBuilder("/bin/sh", "-c", commandLine);
-            builder.inheritIO();
+            ProcessBuilder builder = os.contains("win")
+                    ? new ProcessBuilder("cmd.exe", "/c", commandLine)
+                    : new ProcessBuilder("/bin/sh", "-c", commandLine);
+
             try {
                 Process process = builder.start();
+
+                // Read stdout
+                try (BufferedReader stdout = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = stdout.readLine()) != null) {
+                        OutputWriter.getOut().println(line);
+                    }
+                }
+
+                // Read stderr — this must go to terminal regardless of redirection
+                try (BufferedReader stderr = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = stderr.readLine()) != null) {
+                        System.err.println(line); // ✅ Use actual stderr
+                    }
+                }
+
                 int exitCode = process.waitFor();
                 if (exitCode != 0) {
-                    OutputWriter.println("Command exited with code " + exitCode);
+                    // Don't print unless needed (already handled by stderr)
                 }
+
             } catch (IOException | InterruptedException e) {
-                throw new RuntimeException("Could not execute External Command", e);
+                throw new RuntimeException("Could not execute external command", e);
             }
         }
 
@@ -76,11 +100,8 @@ public enum Command {
             return "'" + s.replace("'", "'\\''") + "'";
         }
 
-        // Join and escape all command arguments
         private String shellEscapeJoin(List<String> args) {
-            return args.stream()
-                    .map(this::shellEscape)
-                    .collect(Collectors.joining(" "));
+            return args.stream().map(this::shellEscape).collect(Collectors.joining(" "));
         }
 
         @Override
