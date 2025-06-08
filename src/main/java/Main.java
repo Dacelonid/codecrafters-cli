@@ -1,4 +1,5 @@
 import Utilities.OutputWriter;
+import Utilities.RedirectHandler;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -6,6 +7,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Scanner;
 
+import static Utilities.RedirectHandler.applyRedirection;
+import static Utilities.RedirectHandler.cleanup;
 import static Utilities.Utils.tokenize;
 
 /**
@@ -38,7 +41,7 @@ public class Main {
             printPrompt();
             String input = getInput();
             try {
-                input = handleRedirectIfNecessary(input);
+                input = applyRedirection(input);
                 String[] inputs = tokenize(input);
 
                 if (emptyUserInput(inputs)) continue;
@@ -47,10 +50,7 @@ public class Main {
             } catch (IOException e) {
                 System.err.println("Redirection failed: " + e.getMessage());
             } finally {
-                if (redirectStream != null) {
-                    redirectStream.close();
-                    OutputWriter.setOut(System.out); // Reset stdout
-                }
+                cleanup();
             }
         }
     }
