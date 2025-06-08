@@ -2,8 +2,6 @@ package Utilities;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Utils {
 
@@ -16,51 +14,68 @@ public class Utils {
         }
     }
 
-
-
-    //Pattern to match, double quotes, single quotes or unquoted content
-    private static final Pattern TOKEN_PATTERN = Pattern.compile("\"([^\"]*)\"|'([^']*)'|([^\\s\"']+)");
-
-    public static final String WHITESPACE = ".*\\s+.*";
-
     public static String[] tokenize(String input) {
-        List<String> parsedTokens = new ArrayList<>();
-        Matcher matcher = TOKEN_PATTERN.matcher(input);
-
+        List<String> tokens = new ArrayList<>();
         StringBuilder current = new StringBuilder();
-        int lastEnd = 0; //end of previous match
 
-        //Get all the regex matches
-        while (matcher.find()) {
-            String value = getToken(matcher);
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean escaping = false;
 
-            // If there's whitespace between this match and the last, it's a new token
-            if (matcher.start() > lastEnd && input.substring(lastEnd, matcher.start()).matches(WHITESPACE)) {
-                //If we are in a token, finalize it and store it
-                if (!current.isEmpty()) {
-                    parsedTokens.add(current.toString());
-                    current.setLength(0);
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (escaping) {
+                // In double quotes: only escape certain characters
+                if (inDoubleQuote && (c == '"' || c == '\\' || c == '$' || c == '`')) {
+                    current.append(c);
+                } else if (!inDoubleQuote && !inSingleQuote) {
+                    // Outside quotes: remove the backslash, append next char literally
+                    current.append(c);
+                } else {
+                    // In single quotes or other cases: keep the backslash
+                    current.append('\\').append(c);
                 }
+                escaping = false;
+                continue;
             }
 
-            // Append this value to the current token (merging adjacent quoted parts)
-            current.append(value);
-            lastEnd = matcher.end();// Move lastEnd to end of this match
+            if (c == '\\') {
+                if (inSingleQuote) {
+                    // Backslashes are literal inside single quotes
+                    current.append(c);
+                } else {
+                    escaping = true;
+                }
+                continue;
+            }
+
+            if (c == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+                continue;
+            }
+
+            if (c == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+                continue;
+            }
+
+            if (Character.isWhitespace(c) && !inSingleQuote && !inDoubleQuote) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current.setLength(0);
+                }
+                continue;
+            }
+
+            current.append(c);
         }
 
-        // Add final token if any
-        if (!current.isEmpty()) {
-            parsedTokens.add(current.toString());
+        if (current.length() > 0) {
+            tokens.add(current.toString());
         }
 
-        return parsedTokens.toArray(new String[0]);
+        return tokens.toArray(new String[0]);
     }
 
-    private static String getToken(Matcher matcher) {
-        String value = matcher.group(1); //check for double-quoted strings
-        if (value == null) value = matcher.group(2);//check for single quoted strings
-        if (value == null) value = matcher.group(3);//check for unquoted strings
-        if (value == null) value = ""; // in case of completely empty match
-        return value;
-    }
 }
