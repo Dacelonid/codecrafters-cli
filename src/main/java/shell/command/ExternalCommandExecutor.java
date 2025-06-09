@@ -72,7 +72,7 @@ public class ExternalCommandExecutor {
         try (BufferedReader stderr = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
             String line;
             while ((line = stderr.readLine()) != null) {
-                System.err.println(line); // Use actual stderr
+                OutputWriter.getErr().println(line);
             }
         }
     }
