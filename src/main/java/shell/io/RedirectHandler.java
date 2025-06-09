@@ -16,7 +16,9 @@ public class RedirectHandler {
         }
         if(input.contains("2>")|| input.contains("2>>")){
             return redirectErr(input);
-        }else if(input.contains("1>") || input.contains(">")|| input.contains("1>>")|| input.contains(">>")){
+        }
+
+        if(input.contains("1>") || input.contains(">")|| input.contains("1>>")|| input.contains(">>")){
             return redirectOut(input);
         }
         return input;
@@ -37,7 +39,7 @@ public class RedirectHandler {
     }
 
     private static String redirectErr(String input) throws FileNotFoundException {
-        String[] parts = input.split("2>");
+        String[] parts = input.split("2>+");
         redirectStream = null;
         if (parts.length == 2) {
             String targetFile = parts[1].trim();

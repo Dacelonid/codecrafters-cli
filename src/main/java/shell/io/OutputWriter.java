@@ -47,7 +47,7 @@ public class OutputWriter {
 
     public static void printlnError(String line) {
         if (append) {
-            err.append(line);
+            err.append(line).append("\n");
         } else {
             err.println(line);
         }
