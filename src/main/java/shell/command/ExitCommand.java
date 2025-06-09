@@ -1,15 +1,18 @@
 package shell.command;
 
 import Utilities.Utils;
+import shell.ExitHandler;
 import shell.io.OutputWriter;
 
 public class ExitCommand implements ShellCommand {
     @Override
     public void execute(String[] args) {
-        if (Utils.isInteger(args[1])) {
-            System.exit(Integer.parseInt(args[1]));
+        if (args.length > 1 && Utils.isInteger(args[1])) {
+            ExitHandler.triggerExit(Integer.parseInt(args[1]));
+        } else if (args.length == 1) {
+            ExitHandler.triggerExit(0);
         } else {
-            OutputWriter.println("Exit called with a non numerical exit code");
+            OutputWriter.println("Exit called with a non-numerical exit code");
         }
     }
 
