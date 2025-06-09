@@ -78,6 +78,8 @@ public class Main {
         OutputWriter.println("");
         String input = buffer.toString();
         buffer.setLength(0);
+        // ✅ Reset tab tracking
+        tabPressCount = 0;
 
         if (!input.isBlank()) {
             try {
@@ -98,31 +100,64 @@ public class Main {
 
         if (!testMode) printPrompt();
     }
+    private static String lastTabPrefix = "";
+    private static int tabPressCount = 0;
 
-    private static void handleTab(StringBuilder buffer, List<String> commands) {
+    private static void handleTab(StringBuilder buffer, List<String> allCommands) {
         String partial = buffer.toString().trim();
-        List<String> matches = commands.stream().filter(cmd -> cmd.startsWith(partial)).toList();
+
+        // ✅ Reset tab press count if input changed
+        if (!partial.equals(lastTabPrefix)) {
+            lastTabPrefix = partial;
+            tabPressCount = 0;
+        }
+
+        // ✅ Find matching commands (builtins + PATH)
+        List<String> matches = allCommands.stream()
+                .filter(cmd -> cmd.startsWith(partial))
+                .toList();
+
+        if (matches.isEmpty()) {
+            // ✅ No matches: ring bell
+            OutputWriter.print("\u0007");
+            return;
+        }
 
         if (matches.size() == 1) {
+            // ✅ One match: complete it
             String completion = matches.getFirst().substring(partial.length()) + " ";
             OutputWriter.print(completion);
             buffer.append(completion);
-        } else if (matches.size() > 1) {
-            OutputWriter.println("");
-            for (String match : matches) {
-                OutputWriter.println(match);
-            }
-            if (!testMode) printPrompt();
-            OutputWriter.print(buffer.toString());
+
+            // ✅ Reset tracking after completion
+            lastTabPrefix = "";
+            tabPressCount = 0;
         } else {
-            OutputWriter.print("\u0007");
+            tabPressCount++;
+            if (tabPressCount == 1) {
+                // ✅ First tab: just ring bell
+                OutputWriter.print("\u0007");
+            } else {
+                // ✅ Second tab: show all matches, two spaces separated
+                OutputWriter.println("");
+                String matchLine = String.join("  ", matches);
+                OutputWriter.println(matchLine);
+                printPrompt();
+                OutputWriter.print(buffer.toString());
+
+                // ✅ Reset counter
+                tabPressCount = 0;
+            }
         }
     }
+
 
     private static void handleDeleting(StringBuilder buffer) {
         if (!buffer.isEmpty()) {
             buffer.setLength(buffer.length() - 1);
             OutputWriter.print("\b \b");
+            // ✅ Reset tab tracking
+            tabPressCount = 0;
         }
     }
 
@@ -130,6 +165,8 @@ public class Main {
         if (ch >= 32 && ch <= 126) { // Printable ASCII range
             OutputWriter.print(String.valueOf((char) ch));
             buffer.append((char) ch);
+            // ✅ Reset tab tracking
+            tabPressCount = 0;
         }
     }
 
