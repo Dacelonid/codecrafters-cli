@@ -55,7 +55,7 @@ public class ExternalCommandExecutor {
         try (BufferedReader stdout = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = stdout.readLine()) != null) {
-                OutputWriter.getOut().println(line);
+                OutputWriter.println(line);
             }
         }
     }
@@ -73,7 +73,8 @@ public class ExternalCommandExecutor {
         try (BufferedReader stderr = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
             String line;
             while ((line = stderr.readLine()) != null) {
-                OutputWriter.getErr().println(line);
+//                OutputWriter.getErr().println(line);
+                OutputWriter.printlnError(line);
             }
         }
     }

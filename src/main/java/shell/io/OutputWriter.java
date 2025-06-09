@@ -5,13 +5,22 @@ import java.io.PrintStream;
 public class OutputWriter {
     private static PrintStream out = System.out;
     private static PrintStream err = System.err;
+    private static boolean append = false;
 
     public static void println(String s) {
-        out.println(s);
+        if(append){
+            out.append(s);
+        }else {
+            out.println(s);
+        }
     }
 
     public static void print(String s) {
-        out.print(s);
+        if(append){
+            out.append(s);
+        }else {
+            out.print(s);
+        }
     }
 
     public static void setOut(PrintStream customOut) {
@@ -33,5 +42,13 @@ public class OutputWriter {
 
     public static void setErr(PrintStream customErr) {
         err = customErr;
+    }
+
+    public static void printlnError(String line) {
+        if(append){
+            err.append(line);
+        }else {
+            err.println(line);
+        }
     }
 }
