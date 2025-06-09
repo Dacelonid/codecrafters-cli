@@ -1,6 +1,7 @@
 package shell.command;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -19,5 +20,9 @@ public class Command {
 
     public static ShellCommand resolve(String name) {
         return COMMANDS.getOrDefault(name, new ExternalCommand());
+    }
+
+    public static List<String> getCommandNames(){
+        return COMMANDS.keySet().stream().toList();
     }
 }
