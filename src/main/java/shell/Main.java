@@ -1,6 +1,7 @@
 package shell;
 
 import shell.command.Command;
+import shell.command.CommandCache;
 import shell.io.OutputWriter;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class Main {
      * - output redirection
      */
     private static void runShell() throws IOException {
-        List<String> commands = Command.getCommandNames();
+        List<String> commands = CommandCache.getAllCommands(); // includes built-ins and external
         StringBuilder buffer = new StringBuilder();
 
         if (!testMode) printPrompt();
