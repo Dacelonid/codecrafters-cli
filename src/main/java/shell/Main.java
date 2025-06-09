@@ -83,6 +83,9 @@ public class Main {
                 String commandInput = applyRedirection(input);
                 String[] tokens = tokenize(commandInput);
                 Command.resolve(tokens[0]).execute(tokens);
+                if (ExitHandler.shouldExit()) {
+                    return; // gracefully exit shell loop
+                }
             } catch (IOException e) {
                 OutputWriter.printlnError("Redirection failed: " + e.getMessage());
             } catch (Exception e) {
