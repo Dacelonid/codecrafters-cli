@@ -113,6 +113,8 @@ public class Main {
             }
             if (!testMode) printPrompt();
             OutputWriter.print(buffer.toString());
+        } else {
+            OutputWriter.print("\u0007");
         }
     }
 
