@@ -9,7 +9,7 @@ public class ExitCommand implements ShellCommand {
         if (Utils.isInteger(args[1])) {
             System.exit(Integer.parseInt(args[1]));
         } else {
-            OutputWriter.getOut().println("Exit called with a non numerical exit code");
+            OutputWriter.println("Exit called with a non numerical exit code");
         }
     }
 

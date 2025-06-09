@@ -7,18 +7,26 @@ public class OutputWriter {
     private static PrintStream err = System.err;
     private static boolean append = false;
 
+    public static void setAppendMode() {
+        append = true;
+    }
+
+    public static boolean isAppend() {
+        return append;
+    }
+
     public static void println(String s) {
-        if(append){
-            out.append(s);
-        }else {
+        if (append) {
+            out.append(s).append("\n");
+        } else {
             out.println(s);
         }
     }
 
     public static void print(String s) {
-        if(append){
+        if (append) {
             out.append(s);
-        }else {
+        } else {
             out.print(s);
         }
     }
@@ -30,14 +38,7 @@ public class OutputWriter {
     public static void reset() {
         out = System.out;
         err = System.err;
-    }
-
-    public static PrintStream getOut() {
-        return out;
-    }
-
-    public static PrintStream getErr() {
-        return err;
+        append = false;
     }
 
     public static void setErr(PrintStream customErr) {
@@ -45,9 +46,9 @@ public class OutputWriter {
     }
 
     public static void printlnError(String line) {
-        if(append){
+        if (append) {
             err.append(line);
-        }else {
+        } else {
             err.println(line);
         }
     }
