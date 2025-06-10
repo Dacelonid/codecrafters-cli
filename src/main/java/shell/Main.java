@@ -20,6 +20,9 @@ import static shell.io.RedirectHandler.cleanup;
 public class Main {
     private static final boolean testMode = System.getenv("CODECRAFTERS_TEST") != null;
 
+    private static String lastTabPrefix = "";
+    private static int tabPressCount = 0;
+
     public static void main(String[] args) throws IOException {
         try {
             if (!testMode) setRawMode();
@@ -100,53 +103,74 @@ public class Main {
 
         if (!testMode) printPrompt();
     }
-    private static String lastTabPrefix = "";
-    private static int tabPressCount = 0;
 
     private static void handleTab(StringBuilder buffer, List<String> allCommands) {
         String partial = buffer.toString().trim();
 
-        // ✅ Reset tab press count if input changed
+        // Reset tab press count if input changed
         if (!partial.equals(lastTabPrefix)) {
             lastTabPrefix = partial;
             tabPressCount = 0;
         }
 
-        // ✅ Find matching commands (builtins + PATH)
+        // Find matching commands (builtins + PATH)
         List<String> matches = allCommands.stream()
                 .filter(cmd -> cmd.startsWith(partial))
                 .toList();
 
         if (matches.isEmpty()) {
-            // ✅ No matches: ring bell
+            // No matches: ring bell
             OutputWriter.print("\u0007");
             return;
         }
 
         if (matches.size() == 1) {
-            // ✅ One match: complete it
+            // One match: complete it
             String completion = matches.getFirst().substring(partial.length()) + " ";
             OutputWriter.print(completion);
             buffer.append(completion);
 
-            // ✅ Reset tracking after completion
+            // Reset tracking after completion
             lastTabPrefix = "";
             tabPressCount = 0;
         } else {
-            tabPressCount++;
-            if (tabPressCount == 1) {
-                // ✅ First tab: just ring bell
-                OutputWriter.print("\u0007");
-            } else {
-                // ✅ Second tab: show all matches, two spaces separated
-                OutputWriter.println("");
-                String matchLine = String.join("  ", matches);
-                OutputWriter.println(matchLine);
-                printPrompt();
-                OutputWriter.print(buffer.toString());
+            // Find the longest common prefix among matches
+            String firstMatch = matches.getFirst();
+            int commonPrefixLength = partial.length();
 
-                // ✅ Reset counter
-                tabPressCount = 0;
+            // Extend the common prefix as long as all matches share the same characters
+            outer:
+            while (commonPrefixLength < firstMatch.length()) {
+                char currentChar = firstMatch.charAt(commonPrefixLength);
+                for (int i = 1; i < matches.size(); i++) {
+                    String match = matches.get(i);
+                    if (commonPrefixLength >= match.length() ||
+                            match.charAt(commonPrefixLength) != currentChar) {
+                        break outer;
+                    }
+                }
+                commonPrefixLength++;
+            }
+
+            // If we found a longer common prefix, complete to it
+            if (commonPrefixLength > partial.length()) {
+                String completion = firstMatch.substring(partial.length(), commonPrefixLength);
+                OutputWriter.print(completion);
+                buffer.append(completion);
+                lastTabPrefix = buffer.toString().trim();
+            } else {
+                // No longer common prefix found, behave as before
+                tabPressCount++;
+                if (tabPressCount == 1) {
+                    OutputWriter.print("\u0007");
+                } else {
+                    OutputWriter.println("");
+                    String matchLine = String.join("  ", matches);
+                    OutputWriter.println(matchLine);
+                    printPrompt();
+                    OutputWriter.print(buffer.toString());
+                    tabPressCount = 0;
+                }
             }
         }
     }

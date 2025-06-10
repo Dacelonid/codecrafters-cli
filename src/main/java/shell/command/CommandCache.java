@@ -37,7 +37,6 @@ public final class CommandCache {
         var extensions = List.of(".exe", ".bat", ".cmd");
 
         return Arrays.stream(pathEnv.split(Pattern.quote(pathSeparator)))
-//                .parallel()
                 .map(Paths::get)
                 .filter(Files::isDirectory)
                 .flatMap(dir -> {
