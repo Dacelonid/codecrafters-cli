@@ -3,6 +3,8 @@ package shell;
 import shell.command.Command;
 import shell.command.CommandCache;
 import shell.io.OutputWriter;
+import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 
 import java.io.IOException;
 import java.util.List;
@@ -81,14 +83,24 @@ public class Main {
         OutputWriter.println("");
         String input = buffer.toString();
         buffer.setLength(0);
-        // ✅ Reset tab tracking
+        // Reset tab tracking
         tabPressCount = 0;
 
         if (!input.isBlank()) {
             try {
                 String commandInput = applyRedirection(input);
-                String[] tokens = tokenize(commandInput);
-                Command.resolve(tokens[0]).execute(tokens);
+                
+                // Split the command by pipe operator
+                String[] pipeCommands = commandInput.split("\\|");
+                
+                if (pipeCommands.length == 1) {
+                    // No pipes, execute normally
+                    String[] tokens = tokenize(commandInput);
+                    Command.resolve(tokens[0]).execute(tokens);
+                } else {
+                    executePipeline(pipeCommands);
+                }
+                
                 if (ExitHandler.shouldExit()) {
                     return; // gracefully exit shell loop
                 }
@@ -103,6 +115,38 @@ public class Main {
 
         if (!testMode) printPrompt();
     }
+
+    private static void executePipeline(String[] pipeCommands) throws Exception {
+        // Create ProcessBuilder for each command
+        List<ProcessBuilder> builders = Arrays.stream(pipeCommands)
+                .map(String::trim)
+                .map(cmd -> tokenize(cmd))
+                .map(tokens -> {
+                    // Check if it's a built-in command
+                    if (Command.getCommandNames().contains(tokens[0])) {
+                        throw new RuntimeException("Built-in commands not supported in pipes: " + tokens[0]);
+                    }
+                    return new ProcessBuilder(tokens);
+                })
+                .toList();
+
+        // Set up first and last process redirects
+        builders.getFirst().redirectInput(ProcessBuilder.Redirect.INHERIT);
+        builders.getLast().redirectOutput(ProcessBuilder.Redirect.INHERIT);
+
+        // Start all processes in the pipeline
+        List<Process> processes = ProcessBuilder.startPipeline(builders);
+
+        // Wait for all processes to complete
+        for (Process process : processes) {
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new Exception("Pipeline command failed with exit code " + exitCode);
+            }
+        }
+    }
+
+
 
     private static void handleTab(StringBuilder buffer, List<String> allCommands) {
         String partial = buffer.toString().trim();
