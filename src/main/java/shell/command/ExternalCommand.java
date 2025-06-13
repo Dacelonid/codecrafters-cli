@@ -1,5 +1,7 @@
 package shell.command;
 
+import Utilities.Utils;
+import shell.Main;
 import shell.io.OutputWriter;
 
 import java.io.*;
@@ -13,23 +15,6 @@ import static java.nio.file.Files.exists;
 import static java.util.regex.Pattern.quote;
 
 public class ExternalCommand implements ShellCommand {
-
-    @Override
-    public void execute(String[] args) {
-        PrintStream originalOut = System.out;
-        InputStream originalIn = System.in;
-        PrintStream originalErr = System.err;
-        // Call execute with System.in and System.out for backward compatibility
-        try {
-            execute(args, System.in, System.out);
-        } catch (IOException e) {
-            OutputWriter.println(args[0] + ": error executing external command");
-        } finally {
-            System.setOut(originalOut); // Restore it
-            System.setIn(originalIn);
-            System.setErr(originalErr);
-        }
-    }
 
     @Override
     public void execute(String[] args, InputStream in, OutputStream out) throws IOException {
@@ -86,16 +71,18 @@ public class ExternalCommand implements ShellCommand {
         inputThread.start();
         outputThread.start();
         errorThread.start();
-
         try {
             int exitCode = process.waitFor();
-            inputThread.join();
-            outputThread.join();
-            errorThread.join();
+
+            inputThread.join(5);
+            outputThread.join(5);
+            errorThread.join(5);
             // You might want to handle non-zero exit codes here or upstream
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
     }
 
     @Override

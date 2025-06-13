@@ -1,6 +1,7 @@
 package Utilities;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -103,5 +104,12 @@ public final class Utils {
         }
 
         return tokens.toArray(new String[0]);
+    }
+
+    public static void printCallChain() {
+        // Get the current thread's stack trace
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+
+        Arrays.asList(stackTrace).forEach(System.out::println);
     }
 }

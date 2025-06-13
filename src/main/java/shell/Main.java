@@ -316,7 +316,7 @@ public class Main {
     }
 
     private static void printPrompt() {
-        OutputWriter.print("$ ");
+        System.out.print("$ ");
     }
 
     /**
