@@ -12,7 +12,8 @@ public class ExitCommand implements ShellCommand {
         } else if (args.length == 1) {
             ExitHandler.triggerExit(0);
         } else {
-            OutputWriter.println("Exit called with a non-numerical exit code");
+            OutputWriter writer = new OutputWriter(System.err);
+            writer.printlnInstance("Exit called with a non-numerical exit code");
         }
     }
 

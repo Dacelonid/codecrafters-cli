@@ -1,5 +1,7 @@
 package shell.io;
 
+import shell.Main;
+
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -51,10 +53,11 @@ public class RedirectHandler {
     }
 
     public static void cleanup() {
-        if (redirectStream != null) {
-            redirectStream.close();
+        if (redirectStream != null)
+                redirectStream.close();
             OutputWriter.setOut(System.out);
             OutputWriter.setErr(System.err);
-        }
+            System.out.flush();
+            System.err.flush();
     }
 }

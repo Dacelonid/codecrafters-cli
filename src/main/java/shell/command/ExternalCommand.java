@@ -2,7 +2,7 @@ package shell.command;
 
 import shell.io.OutputWriter;
 
-import java.io.File;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -13,14 +13,89 @@ import static java.nio.file.Files.exists;
 import static java.util.regex.Pattern.quote;
 
 public class ExternalCommand implements ShellCommand {
+
     @Override
     public void execute(String[] args) {
+        PrintStream originalOut = System.out;
+        InputStream originalIn = System.in;
+        PrintStream originalErr = System.err;
+        // Call execute with System.in and System.out for backward compatibility
+        try {
+            execute(args, System.in, System.out);
+        } catch (IOException e) {
+            OutputWriter.println(args[0] + ": error executing external command");
+        } finally {
+            System.setOut(originalOut); // Restore it
+            System.setIn(originalIn);
+            System.setErr(originalErr);
+        }
+    }
+
+    @Override
+    public void execute(String[] args, InputStream in, OutputStream out) throws IOException {
         if (findCommandInPath(args[0]).isEmpty()) {
-            OutputWriter.println(args[0] + ": command not found");
+            PrintStream ps = null;
+            try {
+                ps = new PrintStream(out, true);
+                ps.println(args[0] + ": command not found");
+            } finally {
+                if (ps != null) {
+                    ps.flush();
+                }
+            }
             return;
         }
 
-        new ExternalCommandExecutor().executeExternalCommand(args);
+        ProcessBuilder builder = new ProcessBuilder(args);
+        builder.redirectError(ProcessBuilder.Redirect.PIPE);
+
+        Process process;
+        try {
+            process = builder.start();
+        } catch (IOException e) {
+            try (PrintStream ps = new PrintStream(out, true)) {
+                ps.println(args[0] + ": failed to start");
+            }
+            return;
+        }
+
+        // Forward input stream to process's stdin
+        Thread inputThread = new Thread(() -> {
+            try (OutputStream processIn = process.getOutputStream()) {
+                in.transferTo(processIn);
+            } catch (IOException ignored) {
+            }
+        });
+
+        // Forward process stdout to out
+        Thread outputThread = new Thread(() -> {
+            try (InputStream processOut = process.getInputStream()) {
+                processOut.transferTo(out);
+            } catch (IOException ignored) {
+            }
+        });
+
+        // Forward process stderr to System.err (or consider redirecting it)
+        Thread errorThread = new Thread(() -> {
+            try (InputStream processErr = process.getErrorStream()) {
+                processErr.transferTo(System.err);
+            } catch (IOException ignored) {
+            }
+        });
+
+        inputThread.start();
+        outputThread.start();
+        errorThread.start();
+
+        try {
+            int exitCode = process.waitFor();
+            inputThread.join();
+            outputThread.join();
+            errorThread.join();
+            // You might want to handle non-zero exit codes here or upstream
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override

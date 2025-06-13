@@ -2,11 +2,12 @@ package shell;
 
 import shell.command.Command;
 import shell.command.CommandCache;
+import shell.command.ExternalCommand;
+import shell.command.ShellCommand;
 import shell.io.OutputWriter;
-import java.util.concurrent.TimeUnit;
-import java.util.Arrays;
 
-import java.io.IOException;
+import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 import static Utilities.Utils.tokenize;
@@ -24,13 +25,12 @@ public class Main {
 
     private static String lastTabPrefix = "";
     private static int tabPressCount = 0;
+    public static boolean debugging = false;
 
     public static void main(String[] args) throws IOException {
         try {
             if (!testMode) setRawMode();
-
             runShell();
-
         } finally {
             if (!testMode) restoreTerminal();
         }
@@ -89,10 +89,10 @@ public class Main {
         if (!input.isBlank()) {
             try {
                 String commandInput = applyRedirection(input);
-                
+
                 // Split the command by pipe operator
                 String[] pipeCommands = commandInput.split("\\|");
-                
+
                 if (pipeCommands.length == 1) {
                     // No pipes, execute normally
                     String[] tokens = tokenize(commandInput);
@@ -100,7 +100,6 @@ public class Main {
                 } else {
                     executePipeline(pipeCommands);
                 }
-                
                 if (ExitHandler.shouldExit()) {
                     return; // gracefully exit shell loop
                 }
@@ -112,40 +111,118 @@ public class Main {
                 cleanup();
             }
         }
-
         if (!testMode) printPrompt();
     }
 
     private static void executePipeline(String[] pipeCommands) throws Exception {
-        // Create ProcessBuilder for each command
-        List<ProcessBuilder> builders = Arrays.stream(pipeCommands)
-                .map(String::trim)
-                .map(cmd -> tokenize(cmd))
-                .map(tokens -> {
-                    // Check if it's a built-in command
-                    if (Command.getCommandNames().contains(tokens[0])) {
-                        throw new RuntimeException("Built-in commands not supported in pipes: " + tokens[0]);
+        int n = pipeCommands.length;
+        List<Thread> threadsToJoin = new ArrayList<>();
+
+        PipedInputStream[] pis = new PipedInputStream[n - 1];
+        PipedOutputStream[] pos = new PipedOutputStream[n - 1];
+        for (int i = 0; i < n - 1; i++) {
+            pos[i] = new PipedOutputStream();
+            pis[i] = new PipedInputStream(pos[i]);
+        }
+
+        for (int i = 0; i < n; i++) {
+            String cmdStr = pipeCommands[i].trim();
+            String[] tokens = tokenize(cmdStr);
+
+            if (tokens.length == 0) {
+                throw new IllegalArgumentException("Empty command at pipeline stage " + i);
+            }
+
+            ShellCommand cmd = Command.resolve(tokens[0]);
+            if (cmd == null) {
+                throw new RuntimeException("Unknown command in pipeline: " + tokens[0]);
+            }
+
+
+            InputStream cmdInput = (i == 0) ? System.in : pis[i - 1];
+            OutputStream cmdOutput = (i == n - 1) ? System.out : pos[i];
+
+            if (cmd instanceof ExternalCommand) {
+                ProcessBuilder pb = new ProcessBuilder(tokens);
+                pb.redirectInput(ProcessBuilder.Redirect.PIPE);
+                pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
+                Process process = pb.start();
+
+                InputStream finalCmdInput = cmdInput;
+                OutputStream finalCmdOutput = cmdOutput;
+
+                Thread tIn = new Thread(() -> {
+                    try (OutputStream stdin = process.getOutputStream()) {
+                        if (finalCmdInput != null) {
+                            finalCmdInput.transferTo(stdin);
+                        }
+                    } catch (IOException e) {
+                        if (!"Pipe closed".equals(e.getMessage())) {
+                            e.printStackTrace();
+                        }
                     }
-                    return new ProcessBuilder(tokens);
-                })
-                .toList();
+                }, "stdin thread for " + cmdStr + " process");
 
-        // Set up first and last process redirects
-        builders.getFirst().redirectInput(ProcessBuilder.Redirect.INHERIT);
-        builders.getLast().redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                Thread tOut = new Thread(() -> {
+                    try (InputStream stdout = process.getInputStream()) {
+                        stdout.transferTo(finalCmdOutput);
+                        finalCmdOutput.flush();
+                        if (finalCmdOutput instanceof PipedOutputStream) {
+                            finalCmdOutput.close(); // signal EOF to next command
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }, "stdout thread for " + cmdStr + " process");
 
-        // Start all processes in the pipeline
-        List<Process> processes = ProcessBuilder.startPipeline(builders);
+                Thread tErr = new Thread(() -> {
+                    try (InputStream stderr = process.getErrorStream()) {
+                        stderr.transferTo(System.err);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }, "stderr thread for " + cmdStr + " process");
 
-        // Wait for all processes to complete
-        for (Process process : processes) {
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new Exception("Pipeline command failed with exit code " + exitCode);
+                tIn.start();
+                tOut.start();
+                tErr.start();
+
+// Collect threads instead of joining immediately
+                threadsToJoin.add(tIn);
+                threadsToJoin.add(tOut);
+                threadsToJoin.add(tErr);
+
+                int exitCode = process.waitFor();
+
+                if (exitCode != 0) {
+                    System.err.println("[DEBUG] Warning: command '" + tokens[0] + "' exited with " + exitCode);
+                }
+            } else {
+                // Built-in command: run in separate thread to avoid blocking the pipeline loop
+                Thread builtinThread = new Thread(() -> {
+                    try {
+                        // Wrap output stream so close() does not close pipe prematurely
+                        try (PrintStream ps = new PrintStream(cmdOutput, true)) {
+                            OutputWriter.setOut(ps);
+                            cmd.execute(tokens, cmdInput, cmdOutput);
+                        } finally {
+                            OutputWriter.reset();
+                        }
+                        if (cmdOutput instanceof PipedOutputStream) {
+                            cmdOutput.close();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }, "builtin thread for " + cmdStr);
+                builtinThread.start();
+                threadsToJoin.add(builtinThread);
             }
         }
+        for (Thread t : threadsToJoin) {
+            t.join(1);
+        }
     }
-
 
 
     private static void handleTab(StringBuilder buffer, List<String> allCommands) {
